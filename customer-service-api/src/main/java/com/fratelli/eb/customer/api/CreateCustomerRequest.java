@@ -8,4 +8,6 @@ public class CreateCustomerRequest {
   public String surname;
   public String email;
   public String password;
+
+
 }

@@ -26,5 +26,14 @@ public interface Event extends Jsonable, AggregateEvent<Event> {
   @JsonDeserialize
   final class CustomerCreated implements Event {
     public Customer customer;
+
+    public CustomerCreated(Customer customer) {
+      this.customer = customer;
+    }
+
+    @Override
+    public Customer getCustomer() {
+      return customer;
+    }
   }
 }

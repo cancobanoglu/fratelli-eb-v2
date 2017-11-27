@@ -34,4 +34,24 @@ public class Customer {
     this.email = email;
     this.password = password;
   }
+
+  public String getUUID() {
+    return UUID;
+  }
+
+  public String getName() {
+    return name;
+  }
+
+  public String getSurname() {
+    return surname;
+  }
+
+  public String getEmail() {
+    return email;
+  }
+
+  public String getPassword() {
+    return password;
+  }
 }

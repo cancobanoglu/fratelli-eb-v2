@@ -17,6 +17,7 @@ public class CustomerEntity extends PersistentEntity<Command, Event, State> {
     BehaviorBuilder builder = newBehaviorBuilder(snapshotState.orElse(State.initial()));
 
     builder.setCommandHandler(Command.CreateCustomer.class, (cmd, ctx) -> {
+
       Customer customer = new Customer(
           entityId(),
           cmd.getName(),
