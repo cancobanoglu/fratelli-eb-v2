@@ -3,12 +3,14 @@ package com.fratelli.eb.customer.impl;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import lombok.Value;
 
+import java.util.UUID;
+
 /**
  * Created by caniven on 25/11/2017.
  */
 @Value
 public class Customer {
-  private final String UUID;
+  private final java.util.UUID UUID;
   private final String name;
   private final String surname;
   private final String email;
@@ -27,7 +29,7 @@ public class Customer {
     this.password = null;
   }
 
-  public Customer(String UUID, String name, String surname, String email, String password) {
+  public Customer(UUID UUID, String name, String surname, String email, String password) {
     this.UUID = UUID;
     this.name = name;
     this.surname = surname;
@@ -35,7 +37,7 @@ public class Customer {
     this.password = password;
   }
 
-  public String getUUID() {
+  public UUID getUUID() {
     return UUID;
   }
 

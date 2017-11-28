@@ -26,6 +26,10 @@ public class State implements Jsonable {
     return new State(Optional.of(Customer.newState()), null);
   }
 
+  public static State empty() {
+    return new State(Optional.of(Customer.newState()), null);
+  }
+
   public State(Optional<Customer> customer, Instant timestamp) {
     this.customer = customer;
     this.timestamp = timestamp;

@@ -20,14 +20,13 @@ public class CustomerServiceImpl implements CustomerService {
 
   private final Logger log = LoggerFactory.getLogger(CustomerServiceImpl.class);
   private final PersistentEntityRegistry registry;
-  private final ReadSide readSide;
-
+  private final CustomerRepository customerRepository;
   @Inject
-  public CustomerServiceImpl(PersistentEntityRegistry registry, ReadSide readSide) {
+  public CustomerServiceImpl(PersistentEntityRegistry registry, CustomerRepository customerRepository) {
     this.registry = registry;
-    this.readSide = readSide;
+    this.customerRepository = customerRepository;
+
     registry.register(CustomerEntity.class);
-    readSide.register(CustomerEventProcessor.class);
   }
 
   @Override

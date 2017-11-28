@@ -11,5 +11,6 @@ public class CustomerServiceModule extends AbstractModule implements ServiceGuic
   @Override
   protected void configure() {
     bindService(CustomerService.class, CustomerServiceImpl.class);
+    bind(CustomerRepository.class);
   }
 }
