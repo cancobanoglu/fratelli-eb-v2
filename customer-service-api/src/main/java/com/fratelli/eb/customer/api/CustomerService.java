@@ -1,6 +1,7 @@
 package com.fratelli.eb.customer.api;
 
 import akka.Done;
+import akka.NotUsed;
 import com.lightbend.lagom.javadsl.api.Descriptor;
 import com.lightbend.lagom.javadsl.api.Service;
 import com.lightbend.lagom.javadsl.api.ServiceCall;
@@ -16,14 +17,17 @@ import static com.lightbend.lagom.javadsl.api.Service.named;
  */
 public interface CustomerService extends Service {
 
-  ServiceCall<CreateCustomerRequest, Done> createCustomer();
+    ServiceCall<CreateCustomerRequest, CreateCustomerResponse> createCustomer();
 
-  @Override
-  default Descriptor descriptor() {
-    return named("customer").withCalls(
-        Service.restCall(Method.POST, "/api/v1/customers", this::createCustomer)
-    ).withPathParamSerializer(
-        UUID.class, PathParamSerializers.required("UUID", UUID::fromString, UUID::toString)
-    ).withAutoAcl(true);
-  }
+    ServiceCall<NotUsed, GetCustomerResponse> getCustomer(UUID customerId);
+
+    @Override
+    default Descriptor descriptor() {
+        return named("customer").withCalls(
+                Service.restCall(Method.POST, "/api/v1/customers", this::createCustomer),
+                Service.restCall(Method.GET, "/api/v1/customers/:customerId", this::getCustomer)
+        ).withPathParamSerializer(
+                UUID.class, PathParamSerializers.required("UUID", UUID::fromString, UUID::toString)
+        ).withAutoAcl(true);
+    }
 }

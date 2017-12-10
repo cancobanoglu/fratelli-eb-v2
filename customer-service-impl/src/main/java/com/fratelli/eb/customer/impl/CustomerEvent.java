@@ -1,6 +1,7 @@
 package com.fratelli.eb.customer.impl;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fratelli.eb.customer.api.Customer;
 import com.lightbend.lagom.javadsl.persistence.AggregateEvent;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventShards;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventTag;
@@ -11,20 +12,20 @@ import lombok.Value;
 /**
  * Created by caniven on 25/11/2017.
  */
-public interface Event extends Jsonable, AggregateEvent<Event> {
+public interface CustomerEvent extends Jsonable, AggregateEvent<CustomerEvent> {
 
   Customer getCustomer();
 
-  AggregateEventShards<Event> TAG = AggregateEventTag.sharded(Event.class, 4);
+  AggregateEventShards<CustomerEvent> TAG = AggregateEventTag.sharded(CustomerEvent.class, 4);
 
   @Override
-  default AggregateEventTagger<Event> aggregateTag() {
+  default AggregateEventTagger<CustomerEvent> aggregateTag() {
     return TAG;
   }
 
   @Value
   @JsonDeserialize
-  final class CustomerCreated implements Event {
+  final class CustomerCreated implements CustomerEvent {
     public Customer customer;
 
     public CustomerCreated(Customer customer) {

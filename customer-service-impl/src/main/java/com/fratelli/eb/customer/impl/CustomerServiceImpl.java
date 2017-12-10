@@ -1,16 +1,16 @@
 package com.fratelli.eb.customer.impl;
 
 import akka.Done;
-import com.fratelli.eb.customer.api.CreateCustomerRequest;
-import com.fratelli.eb.customer.api.CustomerService;
+import akka.NotUsed;
+import com.fratelli.eb.customer.api.*;
 import com.google.inject.Inject;
 import com.lightbend.lagom.javadsl.api.ServiceCall;
 import com.lightbend.lagom.javadsl.persistence.PersistentEntityRef;
 import com.lightbend.lagom.javadsl.persistence.PersistentEntityRegistry;
-import com.lightbend.lagom.javadsl.persistence.ReadSide;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -18,31 +18,61 @@ import java.util.UUID;
  */
 public class CustomerServiceImpl implements CustomerService {
 
-  private final Logger log = LoggerFactory.getLogger(CustomerServiceImpl.class);
-  private final PersistentEntityRegistry registry;
-  private final CustomerRepository customerRepository;
-  @Inject
-  public CustomerServiceImpl(PersistentEntityRegistry registry, CustomerRepository customerRepository) {
-    this.registry = registry;
-    this.customerRepository = customerRepository;
+    private final Logger log = LoggerFactory.getLogger(CustomerServiceImpl.class);
+    private final PersistentEntityRegistry registry;
+    private final CustomerRepository customerRepository;
 
-    registry.register(CustomerEntity.class);
-  }
+    @Inject
+    public CustomerServiceImpl(PersistentEntityRegistry registry, CustomerRepository customerRepository) {
+        this.registry = registry;
+        this.customerRepository = customerRepository;
 
-  @Override
-  public ServiceCall<CreateCustomerRequest, Done> createCustomer() {
-    return createCustomerRequest -> {
-      log.info("createCustomer returns done...");
-      PersistentEntityRef<Command> customerEntityRef = this.registry.refFor(CustomerEntity.class, UUID.randomUUID().toString());
+        registry.register(CustomerEntity.class);
+    }
 
-      Command.CreateCustomer command = new Command.CreateCustomer(
-          createCustomerRequest.name,
-          createCustomerRequest.surname,
-          createCustomerRequest.email,
-          createCustomerRequest.password
-      );
+    @Override
+    public ServiceCall<NotUsed, GetCustomerResponse> getCustomer(UUID customerId) {
+        return request ->
+                entityRef(customerId)
+                        .ask(CustomerCommand.GetCustomer.INSTANCE)
+                        .thenApply(
+                                c -> {
+                                    GetCustomerResponse response = new GetCustomerResponse();
+                                    response.customer = ((Optional<Customer>) c).get();
+                                    return response;
+                                }
+                        );
+    }
 
-      return customerEntityRef.ask(command);
-    };
-  }
+    @Override
+    public ServiceCall<CreateCustomerRequest, CreateCustomerResponse> createCustomer() {
+        return createCustomerRequest -> {
+            log.info("createCustomer returns done...");
+            String entityId = UUID.randomUUID().toString();
+
+            // generate sms code
+
+//            log.info("createCustomer returns done..." + id.toString());
+            PersistentEntityRef<CustomerCommand> customerEntityRef = this.registry.refFor(CustomerEntity.class, entityId);
+
+            CustomerCommand.CreateCustomer command = new CustomerCommand.CreateCustomer(
+                    createCustomerRequest.name,
+                    createCustomerRequest.surname,
+                    createCustomerRequest.email,
+                    createCustomerRequest.password,
+                    SmsCodeUtil.generateCode()
+            );
+
+            return customerEntityRef.ask(command).thenApply(resp -> new CreateCustomerResponse(entityId));
+        };
+    }
+
+    private PersistentEntityRef<CustomerCommand> entityRef(UUID id) {
+        return entityRef(id.toString());
+    }
+
+    private PersistentEntityRef<CustomerCommand> entityRef(String id) {
+        return registry.refFor(CustomerEntity.class, id);
+    }
+
 }

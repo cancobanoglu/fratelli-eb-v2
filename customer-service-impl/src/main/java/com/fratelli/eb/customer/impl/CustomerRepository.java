@@ -5,6 +5,8 @@ import akka.Done;
 import com.datastax.driver.core.BoundStatement;
 import com.datastax.driver.core.PreparedStatement;
 import com.datastax.driver.core.Row;
+import com.fratelli.eb.customer.api.Customer;
+import com.fratelli.eb.customer.api.CustomerBasic;
 import com.google.inject.Inject;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventTag;
 import com.lightbend.lagom.javadsl.persistence.ReadSide;
@@ -12,6 +14,8 @@ import com.lightbend.lagom.javadsl.persistence.ReadSideProcessor;
 import com.lightbend.lagom.javadsl.persistence.cassandra.CassandraReadSide;
 import com.lightbend.lagom.javadsl.persistence.cassandra.CassandraSession;
 import org.pcollections.PSequence;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.inject.Singleton;
 import java.util.Arrays;
@@ -37,26 +41,32 @@ public class CustomerRepository {
 
         return session
                 .selectOne(
-                        "SELECT * FROM customer_auth  WHERE email = ? " ,
+                        "SELECT * FROM customer_auth  WHERE email = ? ",
                         email
                 )
+                .thenApply(rows -> {
 
-                .thenApply(rows -> rows.map(CustomerRepository::convertCustomerSummary).get())
+                    if (rows.isPresent()) {
+                        return rows.map(CustomerRepository::convertCustomerSummary).get();
+                    }
+
+                    throw new IllegalStateException("No customer_auth where email found for itemId " + email);
+                })
                 .thenApply(CustomerSummary -> CustomerSummary.getUUID());
     }
 
-    private static Customer convertCustomerSummary(Row user) {
-        return new Customer(
+    private static CustomerBasic convertCustomerSummary(Row user) {
+        return new CustomerBasic(
                 user.getUUID("id"),
                 user.getString("name"),
                 user.getString("surname"),
                 user.getString("email"),
-                user.getString("password")
-        );
+                user.getString("password"));
     }
 
-    private static class CustomerEventProcessor extends ReadSideProcessor<Event> {
+    private static class CustomerEventProcessor extends ReadSideProcessor<CustomerEvent> {
 
+        private final Logger log = LoggerFactory.getLogger(CustomerEventProcessor.class);
         private final CassandraSession session;
 
         private final CassandraReadSide readSide;
@@ -77,21 +87,20 @@ public class CustomerRepository {
         }
 
         @Override
-        public ReadSideProcessor.ReadSideHandler<Event> buildHandler() {
+        public ReadSideProcessor.ReadSideHandler<CustomerEvent> buildHandler() {
             // TODO build read side handler
-            CassandraReadSide.ReadSideHandlerBuilder<Event> builder = readSide.builder("0");
+            CassandraReadSide.ReadSideHandlerBuilder<CustomerEvent> builder = readSide.builder("0");
 
             builder.setGlobalPrepare(this::createTable);
 
-            //builder.setPrepare()
             builder.setPrepare(tag -> prepareWriteTitle());
 
-            builder.setEventHandler(Event.CustomerCreated.class, this::processPostAdded);
+            builder.setEventHandler(CustomerEvent.CustomerCreated.class, this::processPostAdded);
 
             return builder.build();
         }
 
-        private CompletionStage<List<BoundStatement>> processPostAdded(Event.CustomerCreated event) {
+        private CompletionStage<List<BoundStatement>> processPostAdded(CustomerEvent.CustomerCreated event) {
 
             return completedStatements(Arrays.asList(writeTitle.bind(event.getCustomer().getUUID(),
                     event.getCustomer().getEmail(),
@@ -101,14 +110,17 @@ public class CustomerRepository {
         }
 
         @Override
-        public PSequence<AggregateEventTag<Event>> aggregateTags() {
+        public PSequence<AggregateEventTag<CustomerEvent>> aggregateTags() {
             // TODO return the tag for the events
-            return Event.TAG.allTags();
+            return CustomerEvent.TAG.allTags();
         }
 
         private CompletionStage<Done> createTable() {
+            log.info("Creating Table");
+
             return session.executeCreateTable("CREATE TABLE IF NOT EXISTS customer_auth ( " +
-            "id UUID, email TEXT, password TEXT, name TEXT, surname TEXT, PRIMARY KEY (id))");
+                    "id UUID, email TEXT, password TEXT, name TEXT, surname TEXT, PRIMARY KEY (id, email))").thenCompose(done -> session.executeWrite("CREATE INDEX IF NOT EXISTS ON customer_auth (email)"));
+
         }
 
     }
