@@ -20,14 +20,20 @@ public interface CustomerService extends Service {
     ServiceCall<CreateCustomerRequest, CreateCustomerResponse> createCustomer();
 
     ServiceCall<NotUsed, GetCustomerResponse> getCustomer(UUID customerId);
+    ServiceCall<VerifyCustomerSmsRequest, VerifyCustomerSmsResponse> verifySmsCode();
 
     @Override
     default Descriptor descriptor() {
         return named("customer").withCalls(
                 Service.restCall(Method.POST, "/api/v1/customers", this::createCustomer),
-                Service.restCall(Method.GET, "/api/v1/customers/:customerId", this::getCustomer)
+                Service.restCall(Method.GET, "/api/v1/customers/:customerId", this::getCustomer),
+                Service.restCall(Method.POST, "/api/v1/customers/verify", this::verifySmsCode)
         ).withPathParamSerializer(
                 UUID.class, PathParamSerializers.required("UUID", UUID::fromString, UUID::toString)
         ).withAutoAcl(true);
     }
 }
+
+//Kullanici SignUp oldu id doncek.
+//Sonra onu get ettik. Orada sms kodu donmemeli.
+//Sms generate Code approve

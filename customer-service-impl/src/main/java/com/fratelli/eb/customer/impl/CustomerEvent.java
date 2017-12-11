@@ -37,4 +37,19 @@ public interface CustomerEvent extends Jsonable, AggregateEvent<CustomerEvent> {
       return customer;
     }
   }
+
+  @Value
+  @JsonDeserialize
+  final class CustomerSmsVerified implements CustomerEvent {
+    public Customer customer;
+
+    public CustomerSmsVerified(Customer customer) {
+      this.customer = customer;
+    }
+
+    @Override
+    public Customer getCustomer() {
+      return customer;
+    }
+  }
 }

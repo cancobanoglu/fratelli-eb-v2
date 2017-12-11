@@ -3,6 +3,7 @@ package com.fratelli.eb.customer.impl;
 import akka.Done;
 import com.fratelli.eb.customer.api.Customer;
 import com.fratelli.eb.customer.api.Status;
+import com.fratelli.eb.customer.impl.exception.SmsCodeNotMatchException;
 import com.lightbend.lagom.javadsl.persistence.PersistentEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Function;
 
 /**
  * Created by caniven on 25/11/2017.
@@ -22,7 +24,18 @@ public class CustomerEntity extends PersistentEntity<CustomerCommand, CustomerEv
 
         BehaviorBuilder builder = newBehaviorBuilder(snapshotState.orElse(CustomerState.initial()));
 
-        builder.setCommandHandler(CustomerCommand.CreateCustomer.class, (cmd, ctx) -> {
+        if(builder.getState().customer.get().getUUID() == null) {
+            return notCreated(builder);
+        } else if(builder.getState().customer.get().getStatus() == Status.PENDING) {
+            return notVerified(builder);
+        }
+
+        return builder.build();
+    }
+
+    private Behavior notCreated(BehaviorBuilder b) {
+
+        b.setCommandHandler(CustomerCommand.CreateCustomer.class, (cmd, ctx) -> {
 
             Customer customer = new Customer(
                     UUID.fromString(entityId()),
@@ -37,11 +50,49 @@ public class CustomerEntity extends PersistentEntity<CustomerCommand, CustomerEv
             return ctx.thenPersist(customerCreated, (e) -> ctx.reply(customer.getUUID().toString()));
         });
 
-        builder.setEventHandler(CustomerEvent.CustomerCreated.class,
+        b.setReadOnlyCommandHandler(CustomerCommand.GetCustomer.class, (cmd, ctx) -> ctx.reply(state().customer));
+
+
+        b.setEventHandler(CustomerEvent.CustomerCreated.class,
                 (evt) -> new CustomerState(Optional.of(evt.customer), Instant.now()));
 
-        builder.setReadOnlyCommandHandler(CustomerCommand.GetCustomer.class, (cmd, ctx) -> ctx.reply(state().customer));
+        b.setReadOnlyCommandHandler(CustomerCommand.VerifyActivationCode.class, (cmd, ctx) -> ctx.reply(state().customer.get().getUUID().toString()));
 
-        return builder.build();
+        return b.build();
+    }
+    private Behavior notVerified(BehaviorBuilder b) {
+
+        b.setReadOnlyCommandHandler(CustomerCommand.CreateCustomer.class, (cmd, ctx) -> {
+            ctx.invalidCommand("User already exists.");
+        });
+
+        b.setReadOnlyCommandHandler(CustomerCommand.GetCustomer.class, (cmd, ctx) -> ctx.reply(state().customer));
+
+        b.setCommandHandler(CustomerCommand.VerifyActivationCode.class, (cmd, ctx) -> {
+
+            Customer customer = state().customer.get();
+
+            if(customer.getActivationCode().equals(cmd.code)) {
+
+                Customer copyCustomer = new Customer(
+                        customer.getUUID(),
+                        customer.getName(),
+                        customer.getSurname(),
+                        customer.getEmail(),
+                        customer.getPassword(),
+                        Status.ACTIVE,
+                        customer.getActivationCode());
+
+                CustomerEvent.CustomerSmsVerified customerSmsVerified = new CustomerEvent.CustomerSmsVerified(copyCustomer);
+
+                return ctx.thenPersist(customerSmsVerified, (e) -> ctx.reply(copyCustomer.getUUID().toString()));
+            }
+
+            ctx.commandFailed(SmsCodeNotMatchException.SMS_CODE_NOT_MATCH_EXCEPTION);
+
+            return ctx.done();
+        });
+
+        return b.build();
     }
 }

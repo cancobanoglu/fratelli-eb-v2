@@ -3,8 +3,13 @@ package com.fratelli.eb.customer.impl;
 import akka.Done;
 import akka.NotUsed;
 import com.fratelli.eb.customer.api.*;
+import com.fratelli.eb.customer.impl.exception.SmsCodeNotMatchException;
 import com.google.inject.Inject;
 import com.lightbend.lagom.javadsl.api.ServiceCall;
+import com.lightbend.lagom.javadsl.api.deser.ExceptionMessage;
+import com.lightbend.lagom.javadsl.api.transport.Forbidden;
+import com.lightbend.lagom.javadsl.api.transport.TransportErrorCode;
+import com.lightbend.lagom.javadsl.api.transport.TransportException;
 import com.lightbend.lagom.javadsl.persistence.PersistentEntityRef;
 import com.lightbend.lagom.javadsl.persistence.PersistentEntityRegistry;
 import org.slf4j.Logger;
@@ -42,6 +47,30 @@ public class CustomerServiceImpl implements CustomerService {
                                     return response;
                                 }
                         );
+    }
+
+    @Override
+    public ServiceCall<VerifyCustomerSmsRequest, VerifyCustomerSmsResponse> verifySmsCode() {
+        return request -> {
+
+            PersistentEntityRef<CustomerCommand> customerEntityRef = entityRef(request.customerId);
+            CustomerCommand.VerifyActivationCode command = new CustomerCommand.VerifyActivationCode(request.smsCode);
+            return customerEntityRef.ask(command)
+                    .handle((userId, exception) -> {
+                        if (exception != null) {
+                            if (exception.equals(SmsCodeNotMatchException.SMS_CODE_NOT_MATCH_EXCEPTION)) {
+                                // don't disclose cause of error.
+                                throw new Forbidden("UpdateFailed");
+                            } else {
+                                throw new TransportException(TransportErrorCode.fromHttp(409),
+                                        new ExceptionMessage("VerificationFailed", exception.getMessage()));
+                            }
+                        } else {
+                            return new VerifyCustomerSmsResponse((String)userId);
+                        }
+                    });
+
+        };
     }
 
     @Override

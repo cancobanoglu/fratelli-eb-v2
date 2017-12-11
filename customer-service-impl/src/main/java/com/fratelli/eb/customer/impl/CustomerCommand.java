@@ -29,7 +29,7 @@ public interface CustomerCommand {
             this.surname = surname;
             this.email = email;
             this.password = password;
-            this.activationCode = null;
+            this.activationCode = activationCode;
         }
 
         public String getName() {
@@ -49,15 +49,16 @@ public interface CustomerCommand {
         }
     }
 
+    @Value
+    @JsonDeserialize
+    final class VerifyActivationCode implements CustomerCommand, CompressedJsonable, PersistentEntity.ReplyType<String> {
+        public String code;
+    }
+
     @JsonDeserialize
     enum GetCustomer implements CustomerCommand, CompressedJsonable, PersistentEntity.ReplyType<Optional<Customer>> {
         INSTANCE
     }
 
 
-    @Value
-    @JsonDeserialize
-    final class VerifyActivationCode implements CustomerCommand, CompressedJsonable, PersistentEntity.ReplyType<Done> {
-        public String code;
-    }
 }
